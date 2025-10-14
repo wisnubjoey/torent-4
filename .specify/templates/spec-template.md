@@ -20,6 +20,9 @@
   - Demonstrated to users independently
 -->
 
+Each story MUST call out the unit and integration tests that will prove it and highlight accessibility, performance, and security
+acceptance checks demanded by the constitution.
+
 ### User Story 1 - [Brief Title] (Priority: P1)
 
 [Describe this user journey in plain language]
@@ -99,6 +102,14 @@
 
 - **[Entity 1]**: [What it represents, key attributes without implementation]
 - **[Entity 2]**: [What it represents, relationships to other entities]
+
+### Constitutional Guarantees *(mandatory)*
+
+- **Code Quality Discipline**: [Document linting/formatting commands, refactoring needs, and modular structure]
+- **Test Coverage for Every Feature**: [List the unit + integration suites that will be added or updated]
+- **Accessible, Responsive UX**: [Describe responsive breakpoints, accessibility checks, and shared component usage]
+- **Lean Performance Delivery**: [Provide bundle or load-time targets, lazy-loading approach, asset optimization plan]
+- **Proactive Security Hygiene**: [Explain validation, sanitization, and secret-handling implications]
 
 ## Success Criteria *(mandatory)*
 

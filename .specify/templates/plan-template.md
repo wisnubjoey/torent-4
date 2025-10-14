@@ -3,7 +3,7 @@
 **Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
 **Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
 
-**Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/commands/plan.md` for the execution workflow.
+**Note**: This template is filled in by the `/speckit.plan` command. Consult the project command guide (if configured) for the execution workflow.
 
 ## Summary
 
@@ -31,7 +31,11 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+- **Code Quality Discipline**: Identify lint/format tooling you will run and how duplication will be avoided.
+- **Test Coverage for Every Feature**: List required unit + integration suites (Pest, frontend testing) and how failure will be verified.
+- **Accessible, Responsive UX**: Note responsive breakpoints, accessibility audits, and shared component usage.
+- **Lean Performance Delivery**: Set bundle size/perf targets, lazy-loading approach, and media optimization plan.
+- **Proactive Security Hygiene**: Specify validation, sanitization, and secret-handling updates impacted by this feature.
 
 ## Project Structure
 
