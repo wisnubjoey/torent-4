@@ -249,6 +249,39 @@ paths:
                     type: array
                     items:
                       type: string
+  /user/rentals/history:
+    get:
+      summary: Retrieve paginated historical rentals for a user
+      security:
+        - UserSession: []
+      parameters:
+        - in: query
+          name: status
+          schema:
+            $ref: '#/components/schemas/RentalStatus'
+        - in: query
+          name: from
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: to
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Historical rental collection
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RentalSummary'
   /vehicles:
     get:
       summary: List vehicles with optional filtering

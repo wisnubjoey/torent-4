@@ -3,10 +3,10 @@ import EmailVerificationNotificationController from '@/actions/App/Http/Controll
 import { logout } from '@/routes';
 import { Form, Head } from '@inertiajs/react';
 
-import TextLink from '@/components/text-link';
-import { Button } from '@/components/ui/button';
-import { Spinner } from '@/components/ui/spinner';
-import AuthLayout from '@/layouts/auth-layout';
+import TextLink from '@/Components/text-link';
+import { Button } from '@/Components/ui/button';
+import { Spinner } from '@/Components/ui/spinner';
+import AuthLayout from '@/Layouts/AuthLayout';
 
 export default function VerifyEmail({ status }: { status?: string }) {
     return (

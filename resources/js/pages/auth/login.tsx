@@ -1,12 +1,12 @@
 import AuthenticatedSessionController from '@/actions/App/Http/Controllers/Auth/AuthenticatedSessionController';
-import InputError from '@/components/input-error';
-import TextLink from '@/components/text-link';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Spinner } from '@/components/ui/spinner';
-import AuthLayout from '@/layouts/auth-layout';
+import InputError from '@/Components/input-error';
+import TextLink from '@/Components/text-link';
+import { Button } from '@/Components/ui/button';
+import { Checkbox } from '@/Components/ui/checkbox';
+import { Input } from '@/Components/ui/input';
+import { Label } from '@/Components/ui/label';
+import { Spinner } from '@/Components/ui/spinner';
+import AuthLayout from '@/Layouts/AuthLayout';
 import { register } from '@/routes';
 import { request } from '@/routes/password';
 import { Form, Head } from '@inertiajs/react';
@@ -20,7 +20,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
     return (
         <AuthLayout
             title="Log in to your account"
-            description="Enter your email and password below to log in"
+            description="Enter your phone number and password below to log in"
         >
             <Head title="Log in" />
 
@@ -33,18 +33,18 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                     <>
                         <div className="grid gap-6">
                             <div className="grid gap-2">
-                                <Label htmlFor="email">Email address</Label>
+                                <Label htmlFor="phone_number">Phone number</Label>
                                 <Input
-                                    id="email"
-                                    type="email"
-                                    name="email"
+                                    id="phone_number"
+                                    type="tel"
+                                    name="phone_number"
                                     required
                                     autoFocus
                                     tabIndex={1}
-                                    autoComplete="email"
-                                    placeholder="email@example.com"
+                                    autoComplete="tel"
+                                    placeholder="+62 812-1234-5678"
                                 />
-                                <InputError message={errors.email} />
+                                <InputError message={errors.phone_number} />
                             </div>
 
                             <div className="grid gap-2">

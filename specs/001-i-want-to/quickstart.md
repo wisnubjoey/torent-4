@@ -1,76 +1,78 @@
 # Quickstart — Vehicle Rental Platform MVP
 
 ## Prerequisites
-- PHP 8.2+ with Composer
-- Node.js 18+ with npm
-- PostgreSQL 15 (with pgAdmin4 optional)
-- Redis (for queues/OTP throttling) — optional but recommended
-- WhatsApp Desktop or mobile app for checkout verification
+- PHP 8.2+, Composer
+- Node.js 18+, npm
+- PostgreSQL 15 (pgAdmin4 optional)
+- Redis (recommended for queues/rate limiting)
+- WhatsApp Desktop/mobile for checkout validation
 
 ## Environment Setup
-1. Clone repository and checkout feature branch:
+1. Checkout feature branch:
    ```bash
    git checkout 001-i-want-to
    ```
-2. Install PHP dependencies:
+2. Install dependencies:
    ```bash
    composer install
-   ```
-3. Install Node dependencies:
-   ```bash
    npm install
    ```
-4. Configure environment:
+3. Configure environment:
    ```bash
    cp .env.example .env
    php artisan key:generate
    ```
-5. Update `.env` with:
-   - `DB_CONNECTION=pgsql`, PostgreSQL credentials and database name
-   - `QUEUE_CONNECTION=database` (or redis if available)
-   - `FORTIFY_OTP_EXPIRY_MINUTES=5`
-   - `FORTIFY_OTP_MAX_ATTEMPTS=5`
+   Update `.env` with:
+   - `DB_CONNECTION=pgsql` and credentials
+   - `QUEUE_CONNECTION=database` (or redis)
+   - `CACHE_STORE=redis` (optional for rate limiting)
+   - `OTP_EXPIRY_MINUTES=5`, `OTP_MAX_ATTEMPTS=5`
    - `WHATSAPP_BASE_URL=https://wa.me`
-6. Run migrations and seeders:
+4. Run migrations and seeders:
    ```bash
    php artisan migrate --force
    php artisan db:seed --class=AdminSeeder
+   php artisan db:seed --class=VehicleSeeder
    ```
 
 ## Development Workflow
-1. Launch scheduler, queue worker, Laravel app, and Vite dev server concurrently:
+1. Launch dev services:
    ```bash
    composer dev
    ```
-2. Access user dashboard at `http://localhost:8000` and admin dashboard at `http://localhost:8000/admin`.
-3. Use pgAdmin4 or `psql` to monitor database tables (vehicles, rentals, availability).
+   This starts Laravel server, queue worker, scheduler, logs, and Vite.
+2. Access dashboards:
+   - User dashboard: `http://localhost:8000`
+   - Admin dashboard: `http://localhost:8000/admin`
+3. Manage PostgreSQL data via pgAdmin4 or `psql`.
 
 ## Testing
-- Run backend test suite:
+- Backend suites:
   ```bash
   composer test
   ```
-- Run frontend component tests:
+- Frontend component tests:
   ```bash
   npm run test
   ```
-- Run lint/format checks:
+- Static analysis/lint:
   ```bash
   vendor/bin/pint
   npm run lint
   npm run format:check
   ```
+- Performance accessibility audit:
+  ```bash
+  npm run build && npm run analyze:lighthouse
+  ```
 
-## OTP & Rate Limiting Verification
-- Trigger OTP verification through `/auth/user/otp/verify`; confirm lockout after five failed attempts per hour.
-- Ensure OTP expires within five minutes by testing beyond expiry window.
-
-## WhatsApp Checkout Verification
-- Create a rental and hit the “Confirm via WhatsApp” action; validate the generated `wa.me` link content and fallback copy-to-clipboard behavior if WhatsApp isn’t installed.
-
-## Scheduler & Automation
-- Configure cron entry (e.g., `* * * * * php /path/to/artisan schedule:run`) or run locally:
+## Feature Verification
+- **Authentication**: Register with phone + password, confirm OTP; verify lockout after 5 failed attempts in an hour.
+- **Vehicle Availability**: Seed rentals, confirm calendars disable blocked dates and suggest alternatives.
+- **Booking & WhatsApp**: Create booking, trigger WhatsApp link, test fallback copy if app unavailable.
+- **Admin Oversight**: Confirm CRUD on vehicles, status transitions (`pending → active → completed`), deadline alerts, and historical rentals view.
+- **Scheduler**: Run locally:
   ```bash
   php artisan schedule:work
   ```
-- Confirm rentals auto-transition from `active` to `completed` when `end_date` passes.
+  Validate automatic completion and availability release at rental end dates.

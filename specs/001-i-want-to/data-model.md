@@ -2,141 +2,81 @@
 
 ## Overview
 - **Database**: PostgreSQL 15
-- **Schema Strategy**: Normalized domain tables with foreign keys, cascading deletes where appropriate, and unique constraints to enforce business rules.
-- **Naming Convention**: Snake_case table and column names; UUID primary keys (default Laravel `uuid` casting) for externally exposed identifiers.
+- **Strategy**: Normalized schema with UUID primary keys, audited timestamps, foreign keys with cascading rules where safe, and materialized views for dashboard metrics and historical reporting.
+- **Naming**: Snake_case for tables/columns; enums captured via PostgreSQL `CHECK` constraints or Laravel enum casting.
 
-## Entities
+## Core Tables
 
 ### users
-- **Purpose**: Stores renter accounts authenticated via phone number.
-- **Key Fields**:
-  - `id` (uuid, PK)
-  - `phone_number` (string, unique, E.164)
-  - `password_hash` (string, bcrypt-hashed password)
-  - `otp_verified_at` (timestamp nullable)
-  - `otp_attempts` (integer default 0)
-  - `otp_locked_until` (timestamp nullable)
-  - `created_at`, `updated_at`
-- **Indexes**: unique index on `phone_number`; composite index on `(otp_locked_until, phone_number)` for rate limiting lookup.
-- **Relationships**: `hasMany` rentals
-- **Validation**:
-  - Phone numbers must match E.164 pattern.
-  - Password min 8 chars, contains at least one digit.
+- **Fields**: `id`, `phone_number` (unique, E.164), `password_hash`, `otp_verified_at`, `otp_attempts`, `otp_locked_until`, `remember_token`, timestamps.
+- **Relationships**: `hasMany` rentals, `hasMany` rental_history_views (via materialized view).
+- **Constraints**: enforce phone uniqueness, ensure lock reset when `otp_locked_until` < now.
 
 ### admins
-- **Purpose**: Represents administrative accounts with extended privileges.
-- **Key Fields**:
-  - `id` (uuid, PK)
-  - `username` (string, unique)
-  - `password_hash` (string)
-  - `last_login_at` (timestamp nullable)
-  - `created_at`, `updated_at`
-- **Relationships**: None direct; interacts with rentals via audits.
-- **Validation**: Username alphanumeric 4–32 chars; password same policy as users.
+- **Fields**: `id`, `username` (unique), `password_hash`, `last_login_at`, timestamps.
+- **Relationships**: `hasMany` admin_activity_logs (future extension).
 
 ### vehicles
-- **Purpose**: Catalog of rentable cars and motorcycles.
-- **Key Fields**:
-  - `id` (uuid, PK)
-  - `slug` (string, unique)
-  - `name` (string)
-  - `type` (enum: `car`, `motorcycle`)
-  - `description` (text)
-  - `base_rate` (decimal(10,2))
-  - `capacity` (integer)
-  - `image_url` (string nullable)
-  - `is_active` (boolean default true)
-  - `created_at`, `updated_at`
-- **Relationships**: `hasMany` rental_items; `hasMany` availability entries.
-- **Validation**: Base rate ≥ 0; capacity ≥ 1; type restricted to enum.
+- **Fields**: `id`, `slug` (unique), `name`, `type` (`car`/`motorcycle`), `description`, `base_rate`, `capacity`, `image_url`, `is_active`, timestamps.
+- **Relationships**: `hasMany` rental_items, `hasMany` availability blocks.
+- **Constraints**: `capacity >= 1`, enforce unique slug.
 
 ### rentals
-- **Purpose**: Primary booking record tying user to one or more vehicles.
-- **Key Fields**:
-  - `id` (uuid, PK)
-  - `user_id` (uuid FK → users.id on delete cascade)
-  - `status` (enum: `pending`, `active`, `completed`)
-  - `start_date`, `end_date` (date)
-  - `driver_requested` (boolean)
-  - `whatsapp_message` (text)
-  - `total_amount` (decimal(12,2))
-  - `payment_confirmed_at` (timestamp nullable)
-  - `completed_at` (timestamp nullable)
-  - `created_at`, `updated_at`
-- **Relationships**: `belongsTo` user; `hasMany` rental_items; `hasOne` driver assignment (optional).
-- **Validation**:
-  - `end_date` ≥ `start_date`.
-  - Status transitions follow allowed graph (see Lifecycle).
+- **Fields**: `id`, `user_id`, `status` (`pending`, `active`, `completed`), `start_date`, `end_date`, `driver_requested`, `total_amount`, `payment_confirmed_at`, `completed_at`, `whatsapp_message`, timestamps.
+- **Relationships**: `belongsTo` user, `hasMany` rental_items, `hasMany` rental_events, `hasOne` rental_driver_assignment.
+- **Constraints**: `end_date >= start_date`; status transitions managed via application layer + `rental_events`.
 
 ### rental_items
-- **Purpose**: Line items linking rentals to specific vehicles and quantities.
-- **Key Fields**:
-  - `id` (uuid, PK)
-  - `rental_id` (uuid FK → rentals.id on delete cascade)
-  - `vehicle_id` (uuid FK → vehicles.id on restrict delete)
-  - `quantity` (integer ≥1)
-  - `rate_snapshot` (decimal(10,2))
-  - `created_at`, `updated_at`
-- **Relationships**: `belongsTo` rental; `belongsTo` vehicle.
-- **Validation**: Quantity ≥1; vehicle must be active at booking time.
+- **Fields**: `id`, `rental_id`, `vehicle_id`, `quantity`, `rate_snapshot`, timestamps.
+- **Relationships**: `belongsTo` rental, `belongsTo` vehicle.
+- **Constraints**: `quantity >= 1`; foreign keys restrict deletion of referenced vehicles when active rentals exist.
 
 ### drivers
-- **Purpose**: Optional pool of drivers assignable to rentals.
-- **Key Fields**:
-  - `id` (uuid, PK)
-  - `name` (string)
-  - `phone_number` (string unique, E.164)
-  - `license_number` (string unique)
-  - `is_active` (boolean)
-  - `notes` (text nullable)
-  - `created_at`, `updated_at`
-- **Relationships**: `hasMany` rental_driver_assignments (see below).
+- **Fields**: `id`, `name`, `phone_number`, `license_number`, `is_active`, `notes`, timestamps.
+- **Relationships**: `hasMany` rental_driver_assignments.
+- **Constraints**: Unique phone and license numbers.
 
 ### rental_driver_assignments
-- **Purpose**: Join table linking drivers to rentals when requested.
-- **Key Fields**:
-  - `id` (uuid, PK)
-  - `rental_id` (uuid FK → rentals.id on delete cascade)
-  - `driver_id` (uuid FK → drivers.id on restrict delete)
-  - `assigned_at` (timestamp)
-  - `released_at` (timestamp nullable)
-- **Validation**: Ensure driver is active; rental has `driver_requested = true`.
+- **Fields**: `id`, `rental_id`, `driver_id`, `assigned_at`, `released_at`, timestamps.
+- **Relationships**: `belongsTo` rental, `belongsTo` driver.
+- **Constraints**: `released_at` ≥ `assigned_at`.
 
 ### availability
-- **Purpose**: Tracks blocked or available ranges for vehicles.
-- **Key Fields**:
-  - `id` (uuid, PK)
-  - `vehicle_id` (uuid FK → vehicles.id on delete cascade)
-  - `start_date`, `end_date` (date)
-  - `status` (enum: `available`, `unavailable`)
-  - `reason` (enum: `rental`, `maintenance`, `manual_block`)
-  - `rental_id` (uuid FK nullable → rentals.id on delete set null)
-  - `created_at`, `updated_at`
-- **Validation**:
-  - Date ranges must not overlap for the same vehicle with identical status.
-  - When status=`unavailable` AND reason=`rental`, `rental_id` required.
+- **Fields**: `id`, `vehicle_id`, `start_date`, `end_date`, `status` (`available`/`unavailable`), `reason` (`rental`, `maintenance`, `manual_block`), `rental_id` nullable, timestamps.
+- **Relationships**: `belongsTo` vehicle, `belongsTo` rental (optional).
+- **Constraints**: Prevent overlapping `unavailable` ranges per vehicle; require `rental_id` when reason=`rental`.
+
+### rental_events
+- **Fields**: `id`, `rental_id`, `old_status`, `new_status`, `changed_by` (admin id nullable), `comment`, timestamps.
+- **Purpose**: Track audit trail for FR-008 compliance and analytics.
+
+### rental_history_view (materialized)
+- **Columns**: `rental_id`, `user_id`, `vehicle_summary`, `period`, `status`, `driver_requested`, `completed_at`, `total_amount`.
+- **Usage**: Powers FR-010 (historical booking access) for dashboards; refreshed nightly or on-demand after status changes.
+
+### dashboard_metrics_view (materialized)
+- **Columns**: aggregated pending/active/completed counts, upcoming returns within 48h, available vehicle totals.
+- **Usage**: Populates user/admin dashboards quickly without heavy joins.
 
 ## State Machines
 
-### Rental Status Transitions
-- **Initial**: `pending`
-- **Transitions**:
-  - `pending` → `active` (triggered by admin payment confirmation OR scheduler when payment timestamp present)
-  - `active` → `completed` (scheduler on `end_date` or admin manual completion)
-  - Backwards transitions disallowed; cancellation handled via future extension (not in MVP)
-- **Guards**:
-  - Transition to `active` requires `payment_confirmed_at` set.
-  - Transition to `completed` sets `completed_at` and frees associated availability slots.
+### Rental Status
+- Initial: `pending`.
+- Transitions:
+  - `pending → active` when payment confirmed (manual admin change or automated scheduler).
+  - `active → completed` when end date reached or admin marks done.
+- Guard Conditions:
+  - Transition to `active` requires `payment_confirmed_at` and valid availability locks.
+  - Transition to `completed` releases availability, records `completed_at`, and appends `rental_events` entry.
 
-## Derived Views & Metrics
-- **DashboardMetric** (virtual): aggregated counts
-  - Pending rentals per user
-  - Active rentals per user
-  - Fleet availability summary (active rentals, available vehicles, upcoming returns)
-  - Backed by SQL views or query scopes
+## Validation Rules
+- Phone numbers must match E.164 and pass rate-limit checks before OTP dispatch.
+- Passwords require minimum length 8, at least one number, one letter.
+- WhatsApp messages sanitized to strip newline injection or special characters that break the deep link.
+- Availability submissions reject overlapping ranges or invalid date order.
+- Driver assignment allowed only when `driver_requested = true` and driver active.
 
-## Data Integrity Rules
-- Cascade delete rentals when a user is deleted (MVP assumption).
-- Restrict deleting vehicles that have future availability blocks or active rentals.
-- Enforce unique constraint on `(vehicle_id, start_date, end_date, status)` to prevent duplicate availability entries.
-- Ensure OTP attempts reset when `otp_locked_until` is reached or OTP verified.
+## Data Integrity & Cascades
+- Deleting a user cascades to rentals (MVP assumption) but archives rental history entries.
+- Vehicles cannot be deleted if future availability exists; use soft deletes (`is_active=false`) instead.
+- Scheduler updates availability and rental history view after each status change to maintain dashboard accuracy.

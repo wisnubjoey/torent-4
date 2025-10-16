@@ -7,7 +7,7 @@
 
 ## Summary
 
-Deliver a Laravel 12 + Inertia 2 + React 19 platform that lets renters book cars and motorcycles with WhatsApp checkout while admins manage fleet availability and rental states. Implement modular Laravel modules (Vehicle, Rental, User, Admin), role-specific dashboards using Shadcn/Tailwind UI, PostgreSQL persistence, OTP-gated phone authentication, and scheduler-driven status automation aligned with the MVP success criteria.
+Deliver a Laravel 12 + Inertia 2 + React 19 rental platform where renters book cars or motorcycles with optional drivers, while admins manage fleet availability and rental lifecycles. Implement modular Laravel modules (User, Admin, Vehicle, Rental), role-based dashboards using Shadcn/Tailwind UI, PostgreSQL persistence, phone-number authentication with passwords plus OTP confirmation, and WhatsApp checkout links backed by scheduler-driven status automation.
 
 ## Technical Context
 
@@ -18,26 +18,26 @@ Deliver a Laravel 12 + Inertia 2 + React 19 platform that lets renters book cars
 -->
 
 **Language/Version**: PHP 8.2 (Laravel 12), TypeScript/React 19, TailwindCSS  
-**Primary Dependencies**: Laravel Fortify (OTP + auth guards), Inertia 2, Shadcn UI components, Vite 7, Laravel Scheduler/Queue, Pest, React Testing Library + Vitest  
-**Storage**: PostgreSQL 15 (managed through pgAdmin4)  
-**Testing**: Pest (unit + feature), Laravel HTTP tests, Vitest + React Testing Library for frontend  
+**Primary Dependencies**: Laravel Fortify/Breeze (custom guards), Inertia 2, Shadcn UI, Vite 7, Laravel Scheduler/Queue, Pest, Vitest + React Testing Library, Laravel Pint, Prettier, ESLint  
+**Storage**: PostgreSQL 15 (managed with pgAdmin4), Redis (rate limiting + queues, optional)  
+**Testing**: Pest (unit + feature), Laravel HTTP tests, Vitest + React Testing Library for frontend components, Lighthouse for UX performance audits  
 **Target Platform**: Web (responsive desktop + mobile browsers)
-**Project Type**: Web application (Laravel backend with React SPA via Inertia)  
-**Performance Goals**: Dashboard load <500 ms server time; vehicle detail pages render calendar/media <3 s on 4G; WhatsApp handoff success ≥80%  
-**Constraints**: OTP expires within 5 minutes; max five OTP attempts/hour with two-hour lockout; no external payment providers; MVP deployable on single app server  
-**Scale/Scope**: Initial MVP supporting ~500 active users, fleet ≤200 vehicles, concurrent admin ops ≤10
+**Project Type**: Web application (Laravel backend bridged to React via Inertia)  
+**Performance Goals**: Dashboard server response <500 ms, vehicle detail page fully interactive <3 s on 4G, WhatsApp checkout success ≥80% with fallback, OTP verification round-trip ≤2 min  
+**Constraints**: OTP expires in 5 minutes; limit 5 OTP attempts/hour with two-hour lockout; password authentication required for users/admins; single-app-server MVP, no external payment gateway  
+**Scale/Scope**: Target launch for ≤500 active users, ≤200 vehicles, ≤10 concurrent admins; architecture must leave room for future payment + driver verification integrations
 
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-- **Code Quality Discipline**: Enforce `vendor/bin/pint`, `npm run format:check`, and `npm run lint`; centralize shared logic in `app/Modules/*/Services` and reusable React hooks/components; code review checklist includes duplication scan.
-- **Test Coverage for Every Feature**: Backend Pest unit + feature suites for auth, rentals, scheduler; frontend component/integration tests (React Testing Library) for dashboards and booking flow; CI blocks on failing suites.
-- **Accessible, Responsive UX**: Tailwind responsive breakpoints (sm/md/lg/xl), enforce WCAG AA contrast, keyboard-accessible calendars and buttons, reuse Shadcn primitives located in `resources/js/components/ui`.
-- **Lean Performance Delivery**: Lazy-load vehicle media via `loading="lazy"` and React suspense chunks, cap initial JS bundle <700 KB, compress images through Vite plugins, monitor Lighthouse performance ≥85 on landing/dashboard.
-- **Proactive Security Hygiene**: Laravel Form Request validation for all inputs, sanitized Rich text (if any) via Laravel helper, rate limit auth/booking routes, OTP secrets stored in `.env`, ensure CSRF middleware active for all forms.
+- **Code Quality Discipline**: Automate Pint, ESLint, and Prettier in CI; enforce domain-driven module boundaries (`app/Modules/*`), shared hooks/components for availability logic, and review checklist to flag duplication.
+- **Test Coverage for Every Feature**: Required suites: Pest unit (services, repositories), Pest feature (auth, rentals, availability, admin flows), Laravel HTTP tests for Inertia responses, Vitest + RTL for dashboards and booking UI. CI fails on any red suite.
+- **Accessible, Responsive UX**: Tailwind breakpoints sm→2xl, reusable Shadcn components with aria props, keyboard-accessible calendars, color contrast ≥ WCAG AA, include Lighthouse accessibility scans ≥90.
+- **Lean Performance Delivery**: Lazy-load media/cards, leverage Vite image optimization, chunk React routes, cap initial JS bundle <700 KB, monitor bundle analyzer, run Lighthouse performance ≥85.
+- **Proactive Security Hygiene**: Use Laravel Form Requests for validation, sanitize WhatsApp payloads, enforce rate limit middleware for auth + booking, store secrets in `.env`, enable CSRF middleware, hash OTP codes, log access with PII scrubbing.
 
-**Gate Assessment**: PASS — planned architecture, testing strategy, and optimization steps satisfy all constitutional principles with no outstanding violations.
+**Gate Assessment**: PASS — planned processes satisfy all constitutional principles; deviations will require explicit mitigation if discovered later.
 
 ## Project Structure
 
@@ -66,14 +66,16 @@ app/
 └── Modules/
     ├── User/
     │   ├── Controllers/
+    │   ├── Requests/
     │   ├── Services/
     │   ├── Repositories/
-    │   └── Requests/
+    │   └── Policies/
     ├── Admin/
     │   ├── Controllers/
+    │   ├── Requests/
     │   ├── Services/
     │   ├── Repositories/
-    │   └── Requests/
+    │   └── Policies/
     ├── Vehicle/
     │   ├── Controllers/
     │   ├── Services/
@@ -81,23 +83,26 @@ app/
     │   └── Policies/
     └── Rental/
         ├── Controllers/
+        ├── Requests/
         ├── Services/
         ├── Repositories/
         ├── Jobs/
-        └── Policies/
+        └── Events/
 
 resources/js/
+├── Layouts/
 ├── Pages/
+│   ├── Auth/
 │   ├── User/
 │   │   └── Dashboard/
-│   ├── Admin/
-│   │   ├── Dashboard/
-│   │   └── Vehicles/
-│   └── Auth/
+│   └── Admin/
+│       ├── Dashboard/
+│       └── Vehicles/
 ├── Components/
 │   ├── ui/ (Shadcn exports)
 │   ├── calendars/
-│   └── dashboards/
+│   ├── booking/
+│   └── charts/
 └── hooks/
 
 database/
@@ -112,11 +117,12 @@ tests/
 │   └── Admin/
 ├── Unit/
 │   ├── Services/
-│   └── Repositories/
+│   ├── Repositories/
+│   └── Policies/
 └── Browser/ (Inertia/RTL integration adapters)
 ```
 
-**Structure Decision**: Adopt Laravel module directories under `app/Modules/*` to group controllers/services/repositories per domain, mirror React role-based pages under `resources/js/Pages/{User|Admin}`, and organize tests into Feature/Unit/Browser suites aligning with constitution mandates.
+**Structure Decision**: Adopt Laravel domain modules under `app/Modules/*` to encapsulate controllers/services/repositories per bounded context, mirror role-specific React pages in `resources/js/Pages/{Auth|User|Admin}`, centralize shared components/hooks, and organize tests into Feature/Unit/Browser suites to meet constitutional quality gates.
 
 ## Complexity Tracking
 

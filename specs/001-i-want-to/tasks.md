@@ -33,11 +33,12 @@ description: "Task list for Vehicle Rental Platform MVP implementation"
 
 **Purpose**: Project initialization and baseline tooling from the constitution
 
-- [ ] T001 Initialize module folder scaffolding: `app/Modules/{User,Admin,Vehicle,Rental}` with placeholder Controllers/Services/Repositories.
-- [ ] T002 Configure Laravel Fortify with custom providers for phone + username auth in `config/fortify.php`.
-- [ ] T003 [P] Install Shadcn component library baseline into `resources/js/components/ui/` and Tailwind presets.
-- [ ] T004 [P] Establish Inertia shared layout (`resources/js/Layouts/AppLayout.tsx`) and register in `app/Providers/InertiaServiceProvider.php`.
-- [ ] T005 Create base Vite aliases for module imports in `vite.config.ts` and TypeScript paths in `tsconfig.json`.
+- [X] T001 Scaffold domain module directories `app/Modules/{User,Admin,Vehicle,Rental}` and register module service providers in `config/app.php`.
+- [X] T002 Install and configure Laravel Fortify/Breeze inertia scaffolding for phone+password (user) and username+password (admin) guards.
+- [X] T003 [P] Initialize Redis/queue configuration for rate limiting and queued jobs in `.env`, `config/database.php`, and `config/queue.php`.
+- [X] T004 [P] Install Shadcn component library and generate base UI primitives into `resources/js/Components/ui/*` with Tailwind integration.
+- [X] T005 [P] Establish shared Inertia layout (`resources/js/Layouts/AppLayout.tsx`) and register in `app/Providers/InertiaServiceProvider.php`.
+- [X] T006 Configure Vite + TypeScript aliases for module paths in `vite.config.ts` and `tsconfig.json`.
 
 ---
 
@@ -45,14 +46,14 @@ description: "Task list for Vehicle Rental Platform MVP implementation"
 
 **Purpose**: Core infrastructure that MUST be complete before ANY user story work
 
-- [ ] T006 Create PostgreSQL migrations for `users`, `admins`, `vehicles`, `rentals`, `rental_items`, `drivers`, `rental_driver_assignments`, `availability` per data model.
-- [ ] T007 Seed baseline admin account and demo vehicles via `database/seeders/AdminSeeder.php` and `VehicleSeeder.php`.
-- [ ] T008 Implement shared repository abstractions (`app/Support/Repositories/BaseRepository.php`) and service provider bindings.
-- [ ] T009 Configure rate limiting (`app/Providers/RouteServiceProvider.php`) for OTP/login/bookings aligning with research decisions.
-- [ ] T010 Set up global validation + sanitization middleware (`app/Http/Middleware/SanitizeInput.php`) and register in kernel.
-- [ ] T011 Wire role-based middleware and guards in `config/auth.php` and route groups in `routes/web.php`.
-- [ ] T012 Add shared dashboard metric query builder in `app/Modules/Rental/Services/DashboardMetricService.php`.
-- [ ] T013 Establish scheduler + queue worker scripts: define `app/Console/Kernel.php` schedule job stub for rental status updates.
+- [ ] T007 Create PostgreSQL migrations for core tables and materialized views per data-model (`users`, `admins`, `vehicles`, `rentals`, `rental_items`, `drivers`, `rental_driver_assignments`, `availability`, `rental_events`, `rental_history_view`, `dashboard_metrics_view`).
+- [ ] T008 Seed baseline admin account, demo vehicles, and sample availability in `database/seeders/AdminSeeder.php` and `VehicleSeeder.php`.
+- [ ] T009 Implement shared repository abstractions and service bindings (`app/Support/Repositories/BaseRepository.php`, module providers).
+- [ ] T010 Configure Laravel rate limiters for auth + booking routes in `app/Providers/RouteServiceProvider.php` honoring 5 attempts/hour OTP rule.
+- [ ] T011 Add global sanitization middleware (`app/Http/Middleware/SanitizeInput.php`) and register in HTTP kernel.
+- [ ] T012 Wire role-based guards/middleware and route groups in `config/auth.php` and `routes/web.php` (user vs admin prefixes).
+- [ ] T013 Implement scheduler registration (`app/Console/Kernel.php`) and stub queued job classes for rental lifecycle automation.
+- [ ] T014 Create shared dashboard metrics service skeleton `app/Modules/Rental/Services/DashboardMetricService.php` returning aggregated counts/upcoming deadlines.
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -60,25 +61,26 @@ description: "Task list for Vehicle Rental Platform MVP implementation"
 
 ## Phase 3: User Story 1 - Phone-Based Registration & Dashboard Access (Priority: P1) 🎯 MVP
 
-**Goal**: Enable phone OTP onboarding and deliver a renter dashboard with quick actions and stats.
+**Goal**: Provide secure phone+password onboarding with OTP confirmation and a renter dashboard showing quick actions and personal rental stats.
 
-**Independent Test**: Verify new phone registration, OTP verification, and dashboard metrics render using seeded rentals.
+**Independent Test**: Sign up with phone+password, confirm OTP, log in, and verify dashboard quick actions plus metric counts using seeded rentals.
 
 ### Tests for User Story 1 (REQUIRED) ⚠️
 
-- [ ] T014 [P] [US1] Write Pest feature tests for phone registration + OTP lockouts in `tests/Feature/Auth/PhoneRegistrationTest.php`.
-- [ ] T015 [P] [US1] Implement Vitest + RTL test for user dashboard quick actions/state counts in `resources/js/Pages/User/Dashboard/__tests__/Dashboard.test.tsx`.
+- [ ] T015 [P] [US1] Write Pest feature tests for registration/login/OTP lockouts in `tests/Feature/Auth/PhonePasswordAuthTest.php`.
+- [ ] T016 [P] [US1] Write Pest feature tests for dashboard metrics API in `tests/Feature/User/DashboardMetricsTest.php`.
+- [ ] T017 [P] [US1] Implement Vitest + RTL test for dashboard quick actions and accessibility in `resources/js/Pages/User/Dashboard/__tests__/Dashboard.test.tsx`.
 
 ### Implementation for User Story 1
 
-- [ ] T016 [US1] Build Fortify phone registration + login controllers in `app/Modules/User/Controllers/AuthController.php` with OTP workflows.
-- [ ] T017 [US1] Create OTP validation request + rate limiter logic in `app/Modules/User/Requests/OtpVerifyRequest.php`.
-- [ ] T018 [US1] Implement OTP persistence service (`app/Modules/User/Services/OtpService.php`) respecting expiry + lock rules.
-- [ ] T019 [US1] [P] Design user dashboard controller + Inertia response in `app/Modules/User/Controllers/DashboardController.php`.
-- [ ] T020 [US1] [P] Build React dashboard page `resources/js/Pages/User/Dashboard/Index.tsx` with quick actions + metric cards.
-- [ ] T021 [US1] Add dashboard metric queries in `DashboardMetricService::forUser()` and expose to Inertia props.
-- [ ] T022 [US1] Style dashboard using Shadcn cards and Tailwind; ensure accessibility states for buttons.
-- [ ] T023 [US1] Document OTP + dashboard flow in `resources/js/Pages/User/Dashboard/README.md`.
+- [ ] T018 [US1] Implement Fortify actions for phone registration, password login, and OTP confirmation in `app/Modules/User/Controllers/AuthController.php` and related handlers.
+- [ ] T019 [US1] Create OTP persistence + hashing service in `app/Modules/User/Services/OtpService.php` with expiry + lock logic.
+- [ ] T020 [US1] Add OTP verification request + validation rules in `app/Modules/User/Requests/OtpVerifyRequest.php`.
+- [ ] T021 [US1] Build dashboard controller delivering metrics/history excerpts in `app/Modules/User/Controllers/DashboardController.php`.
+- [ ] T022 [US1] Extend `DashboardMetricService::forUser()` to compute pending/active/completed counts and most recent rentals.
+- [ ] T023 [US1] [P] Create React dashboard page `resources/js/Pages/User/Dashboard/Index.tsx` with quick action cards and metric tiles.
+- [ ] T024 [US1] [P] Style dashboard components using Shadcn primitives and ensure keyboard-focus states.
+- [ ] T025 [US1] Document auth + dashboard flow in `docs/features/auth-dashboard.md` for QA reference.
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently
 
@@ -86,28 +88,28 @@ description: "Task list for Vehicle Rental Platform MVP implementation"
 
 ## Phase 4: User Story 2 - Vehicle Discovery & Availability Selection (Priority: P1)
 
-**Goal**: Let renters browse cars/motorcycles, inspect availability, choose dates, and configure driver option.
+**Goal**: Allow renters to browse vehicles, review availability calendars, configure rentals by date, and request an optional driver.
 
-**Independent Test**: Start from dashboard, open vehicle detail, select available dates, toggle driver, and see accurate booking summary validation.
+**Independent Test**: From dashboard, open vehicle catalog, view detail calendar, select available range, toggle driver, and confirm booking summary updates correctly.
 
 ### Tests for User Story 2 (REQUIRED) ⚠️
 
-- [ ] T024 [P] [US2] Write Pest unit tests for availability overlap logic in `tests/Unit/Services/AvailabilityServiceTest.php`.
-- [ ] T025 [P] [US2] Add Pest feature tests covering vehicle listing + filtering in `tests/Feature/Vehicles/VehicleBrowseTest.php`.
-- [ ] T026 [P] [US2] Implement Vitest + RTL test for calendar selection + driver toggle in `resources/js/Pages/User/Vehicles/__tests__/VehicleDetail.test.tsx`.
+- [ ] T026 [P] [US2] Write Pest unit tests covering availability overlap calculations in `tests/Unit/Services/AvailabilityServiceTest.php`.
+- [ ] T027 [P] [US2] Write Pest feature tests for vehicle listing/filtering endpoints in `tests/Feature/Vehicles/VehicleBrowseTest.php`.
+- [ ] T028 [P] [US2] Implement Vitest + RTL test for calendar selection + driver toggle UI in `resources/js/Pages/User/Vehicles/__tests__/VehicleDetail.test.tsx`.
 
 ### Implementation for User Story 2
 
-- [ ] T027 [US2] Implement availability repository + service in `app/Modules/Vehicle/Services/AvailabilityService.php`.
-- [ ] T028 [US2] Build vehicle listing controller + filters in `app/Modules/Vehicle/Controllers/VehicleController.php`.
-- [ ] T029 [US2] [P] Create Inertia routes + pages `resources/js/Pages/User/Vehicles/Index.tsx` and `Show.tsx` with calendar integration.
-- [ ] T030 [US2] [P] Develop shared calendar component in `resources/js/Components/calendars/VehicleAvailabilityCalendar.tsx`.
-- [ ] T031 [US2] Add driver option handling in booking draft store `resources/js/hooks/useBookingDraft.ts`.
-- [ ] T032 [US2] Generate WhatsApp message builder utility in `resources/js/lib/buildWhatsAppMessage.ts`.
-- [ ] T033 [US2] Validate server-side selection via Form Request `app/Modules/Rental/Requests/CreateRentalRequest.php`.
-- [ ] T034 [US2] Integrate availability checks within rental service `app/Modules/Rental/Services/RentalService.php`.
-- [ ] T035 [US2] Update contract implementation for `/vehicles` and `/vehicles/{id}` endpoints in `routes/web.php`.
-- [ ] T036 [US2] Provide user-facing empty/maintenance states in UI with accessible messaging.
+- [ ] T029 [US2] Implement availability repository/service logic in `app/Modules/Vehicle/Services/AvailabilityService.php` referencing `availability` table.
+- [ ] T030 [US2] Build vehicle controller + filters in `app/Modules/Vehicle/Controllers/VehicleController.php` aligning with `/vehicles` contracts.
+- [ ] T031 [US2] [P] Add Inertia pages `resources/js/Pages/User/Vehicles/Index.tsx` and `Show.tsx` with data loaders.
+- [ ] T032 [US2] [P] Develop shared calendar component `resources/js/Components/calendars/VehicleAvailabilityCalendar.tsx` with disabled + tooltip states.
+- [ ] T033 [US2] Implement booking draft hook/store `resources/js/hooks/useBookingDraft.ts` handling dates, quantities, driver flag.
+- [ ] T034 [US2] Validate booking inputs via `app/Modules/Rental/Requests/CreateRentalRequest.php` enforcing date logic + driver flag.
+- [ ] T035 [US2] Integrate availability checks in `app/Modules/Rental/Services/RentalService.php` when staging rentals.
+- [ ] T036 [US2] Generate WhatsApp message builder utility `resources/js/lib/buildWhatsAppMessage.ts` returning structured summary.
+- [ ] T037 [US2] Provide empty/maintenance states and accessibility copy for unavailable calendars in React pages.
+- [ ] T038 [US2] Update contracts routing definitions in `routes/web.php` for `/vehicles` and `/vehicles/{id}`.
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently
 
@@ -115,29 +117,33 @@ description: "Task list for Vehicle Rental Platform MVP implementation"
 
 ## Phase 5: User Story 3 - Booking Confirmation & Admin Oversight (Priority: P1)
 
-**Goal**: Complete booking submission, WhatsApp checkout, and synchronized admin controls for rentals, availability, and analytics.
+**Goal**: Enable booking submission with WhatsApp checkout (including fallback), admin dashboards with CRUD, deadline alerts, and historical rental visibility.
 
-**Independent Test**: Submit booking, open WhatsApp link, admin confirms payment (status → Active), scheduler auto-completes at end date, dashboards sync.
+**Independent Test**: Complete a booking, open WhatsApp link (or fallback), have admin confirm payment to activate rental, observe auto-complete on end date, view upcoming deadlines and history on dashboards.
 
 ### Tests for User Story 3 (REQUIRED) ⚠️
 
-- [ ] T037 [P] [US3] Add Pest feature tests for rental lifecycle transitions in `tests/Feature/Rentals/RentalLifecycleTest.php`.
-- [ ] T038 [P] [US3] Write Pest feature tests for admin vehicle CRUD and availability management in `tests/Feature/Admin/AdminVehicleManagementTest.php`.
-- [ ] T039 [P] [US3] Create Vitest + RTL test for admin dashboard stats + status update interactions in `resources/js/Pages/Admin/Dashboard/__tests__/Dashboard.test.tsx`.
+- [ ] T039 [P] [US3] Write Pest feature tests for rental lifecycle transitions and scheduler job in `tests/Feature/Rentals/RentalLifecycleTest.php`.
+- [ ] T040 [P] [US3] Write Pest feature tests for admin vehicle CRUD + availability management in `tests/Feature/Admin/AdminVehicleManagementTest.php`.
+- [ ] T041 [P] [US3] Write Pest feature tests for historical rentals and deadline alerts in `tests/Feature/Admin/AdminDashboardHistoryTest.php`.
+- [ ] T042 [P] [US3] Implement Vitest + RTL tests for admin dashboard interactions in `resources/js/Pages/Admin/Dashboard/__tests__/Dashboard.test.tsx`.
 
 ### Implementation for User Story 3
 
-- [ ] T040 [US3] Implement rental creation endpoint + WhatsApp link generator in `app/Modules/Rental/Controllers/RentalController.php`.
-- [ ] T041 [US3] [P] Build WhatsApp confirmation button component in `resources/js/Components/booking/WhatsAppCheckoutButton.tsx`.
-- [ ] T042 [US3] Develop admin dashboard controller in `app/Modules/Admin/Controllers/DashboardController.php` using metrics service.
-- [ ] T043 [US3] [P] Create admin Inertia pages `resources/js/Pages/Admin/Dashboard/Index.tsx` and `resources/js/Pages/Admin/Vehicles/Index.tsx`.
-- [ ] T044 [US3] Implement admin rental status update endpoint mapped to `/admin/rentals/{id}/status`.
-- [ ] T045 [US3] Wire Laravel scheduler job `app/Modules/Rental/Jobs/AutoCompleteRentals.php` and register in console kernel.
-- [ ] T046 [US3] [P] Implement admin availability management UI + controller `app/Modules/Admin/Controllers/AvailabilityController.php`.
-- [ ] T047 [US3] Ensure audit logging for rental transitions in `app/Modules/Rental/Services/RentalStatusLogger.php`.
-- [ ] T048 [US3] Connect driver assignment flow, optional, via `app/Modules/Rental/Controllers/DriverAssignmentController.php`.
-- [ ] T049 [US3] Update quickstart docs with WhatsApp + scheduler validation steps (`quickstart.md` additions).
-- [ ] T050 [US3] Add browser/integration test harness bootstrap (e.g., Dusk or Inertia testing utils) if needed for WhatsApp redirection verification.
+- [ ] T043 [US3] Implement rental creation + WhatsApp link controller methods in `app/Modules/Rental/Controllers/RentalController.php`.
+- [ ] T044 [US3] [P] Build WhatsApp checkout button with fallback copy-to-clipboard in `resources/js/Components/booking/WhatsAppCheckoutButton.tsx`.
+- [ ] T045 [US3] Implement `/rentals/{id}/whatsapp` route + sanitization helper ensuring safe deeplinks.
+- [ ] T046 [US3] Develop admin dashboard controller/views in `app/Modules/Admin/Controllers/DashboardController.php` & `resources/js/Pages/Admin/Dashboard/Index.tsx` displaying metrics, deadlines, history list.
+- [ ] T047 [US3] [P] Implement admin vehicles management pages `resources/js/Pages/Admin/Vehicles/Index.tsx` with CRUD forms and policy checks.
+- [ ] T048 [US3] Implement admin rental status update endpoint `/admin/rentals/{id}/status` with guard rails.
+- [ ] T049 [US3] Configure scheduler job `app/Modules/Rental/Jobs/AutoCompleteRentals.php` + queue listener to transition statuses and refresh views.
+- [ ] T050 [US3] [P] Implement admin availability controller `app/Modules/Admin/Controllers/AvailabilityController.php` handling manual blocks.
+- [ ] T051 [US3] Log rental events in `app/Modules/Rental/Services/RentalStatusLogger.php` with audit trail entries.
+- [ ] T052 [US3] Implement rental history repository/service (`app/Modules/Rental/Services/RentalHistoryService.php`) powering `/user/rentals/history` and admin timeline.
+- [ ] T053 [US3] Add Inertia page `resources/js/Pages/User/Rentals/History.tsx` listing historical rentals with filters.
+- [ ] T054 [US3] Integrate upcoming deadline calculations in `DashboardMetricService::forAdmin()` and surface alerts in UI.
+- [ ] T055 [US3] Update quickstart documentation (`quickstart.md`) with WhatsApp fallback, deadline alerts, and history verification steps.
+- [ ] T056 [US3] Add browser/integration harness (e.g., Laravel Dusk or Inertia testing helpers) to verify WhatsApp redirect + fallback at `tests/Browser/Booking/WhatsAppCheckoutTest.php`.
 
 **Checkpoint**: All user stories should now be independently functional
 
@@ -147,37 +153,37 @@ description: "Task list for Vehicle Rental Platform MVP implementation"
 
 **Purpose**: Repository-wide improvements following story completion
 
-- [ ] T051 [P] Update README/AGENTS.md with module usage, commands, and dashboards overview.
-- [ ] T052 [P] Run Lighthouse audits and optimize media sizes documented in `docs/performance-report.md`.
-- [ ] T053 Conduct security review checklist (validation, CSRF, rate limits) and document in `docs/security-review.md`.
-- [ ] T054 [P] Finalize analytics instrumentation hooks (logging) for rentals in `app/Modules/Rental/Services/AnalyticsEmitter.php`.
+- [ ] T057 [P] Update README/AGENTS.md with module usage, auth changes, and testing commands.
+- [ ] T058 [P] Run Lighthouse audits and capture metrics in `docs/performance-report.md` ensuring ≥85 score.
+- [ ] T059 Conduct security review checklist (validation, CSRF, rate limits) and document in `docs/security-review.md`.
+- [ ] T060 [P] Wire analytics/logging hooks in `app/Modules/Rental/Services/AnalyticsEmitter.php` for rental events + WhatsApp conversions.
 
 ---
 
 ## Dependencies & Execution Order
 
-- **Setup (Phase 1)**: No dependencies - can start immediately.
-- **Foundational (Phase 2)**: Depends on Setup completion - BLOCKS all user stories.
-- **User Story 1 (Phase 3)**: Requires Foundational phase. Unlocks authentication and dashboard flows.
-- **User Story 2 (Phase 4)**: Depends on Phase 3 only for authenticated dashboard entry point; availability services rely on migrations from Phase 2.
-- **User Story 3 (Phase 5)**: Depends on Phases 3 and 4 for booking creation and availability integration.
-- **Polish (Final Phase)**: Depends on completion of all targeted user stories.
+- **Setup (Phase 1)**: No dependencies — runs first.
+- **Foundational (Phase 2)**: Depends on Setup completion — BLOCKS all user stories.
+- **User Story 1 (Phase 3)**: Requires Phase 2 completion; enables authenticated access and dashboard metrics.
+- **User Story 2 (Phase 4)**: Depends on Phase 3 (dashboard navigation) and foundational availability schema.
+- **User Story 3 (Phase 5)**: Depends on Phases 3 & 4 (booking draft + availability) to complete lifecycle flows.
+- **Polish (Final Phase)**: Depends on all user stories finishing.
 
 ### Parallel Opportunities
 
-- Phase 1 tasks T003 and T004 can proceed in parallel with backend scaffolding.
-- Within Phase 3, UI (T020) and backend metrics (T021) can run concurrently once controllers stubbed.
-- Phase 4 calendar UI (T030) and driver toggle logic (T031) are parallelizable.
-- Phase 5 admin UI (T043) can proceed while scheduler/job logic (T045) is implemented.
-- Testing tasks marked [P] across all phases can run in parallel after relevant code sections exist.
+- Phase 1 tasks T003–T005 can run alongside module scaffolding once Fortify install starts.
+- In Phase 3, backend metric work (T022) and React dashboard (T023) can proceed in parallel.
+- In Phase 4, availability service (T029) and calendar UI (T032) are parallelizable streams.
+- In Phase 5, admin UI (T046/T047) can develop while scheduler/job logic (T049) and history services (T052) advance.
+- All test tasks marked [P] may run parallel once relevant functionality is implemented.
 
-### Parallel Example: User Story 2
+### Parallel Example: User Story 3
 
 ```bash
-# Execute availability service and calendar UI workstreams simultaneously
-Task: "Implement availability repository + service in app/Modules/Vehicle/Services/AvailabilityService.php"
-Task: "[P] Create Inertia routes + pages resources/js/Pages/User/Vehicles/Index.tsx and Show.tsx with calendar integration"
-Task: "[P] Develop shared calendar component in resources/js/Components/calendars/VehicleAvailabilityCalendar.tsx"
+# Run admin dashboard UI and rental history services in parallel once endpoints exist
+Task: "Develop admin dashboard controller/views in app/Modules/Admin/Controllers/DashboardController.php & resources/js/Pages/Admin/Dashboard/Index.tsx"
+Task: "[P] Implement admin vehicles management pages resources/js/Pages/Admin/Vehicles/Index.tsx with CRUD forms and policy checks"
+Task: "Implement rental history repository/service (app/Modules/Rental/Services/RentalHistoryService.php) powering /user/rentals/history and admin timeline"
 ```
 
 ---
@@ -187,19 +193,19 @@ Task: "[P] Develop shared calendar component in resources/js/Components/calendar
 ### MVP First (User Story 1 Only)
 
 1. Complete Phase 1 Setup.
-2. Complete Phase 2 Foundational (critical infrastructure).
-3. Deliver Phase 3 (US1) to enable phone onboarding and dashboard metrics.
-4. Validate OTP + dashboard flow end to end before proceeding.
+2. Complete Phase 2 Foundational tasks.
+3. Deliver User Story 1 (auth + dashboard) and run associated tests.
+4. Validate OTP/password flows and dashboard metrics before continuing.
 
 ### Incremental Delivery
 
-1. Deploy US1 once stable for early feedback on authentication/dashboard.
-2. Add US2 for availability browsing and booking configuration; release once independent tests pass.
-3. Layer US3 for WhatsApp checkout and admin management, ensuring scheduler automation works.
+1. Ship US1 for early feedback on onboarding and dashboard metrics.
+2. Add US2 to unlock availability browsing and booking configuration.
+3. Layer US3 to finalize checkout, admin oversight, and automation.
 
 ### Parallel Team Strategy
 
-1. Team A handles backend modules (Services, Controllers) per story.
-2. Team B builds React pages/components with RTL coverage.
-3. Dedicated QA/tester executes Pest/Vitest suites as tasks complete.
-4. Sync daily on shared services (Dashboard metrics, RentalService) to avoid merge conflicts.
+1. Backend-focused dev handles modules, repositories, and scheduler.
+2. Frontend-focused dev builds React pages/components with RTL coverage.
+3. QA/automation engineer writes Pest/Vitest suites and browser harness.
+4. Daily sync on shared services (Dashboard metrics, RentalService) to manage dependencies.

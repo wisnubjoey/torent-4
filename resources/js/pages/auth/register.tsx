@@ -2,19 +2,19 @@ import RegisteredUserController from '@/actions/App/Http/Controllers/Auth/Regist
 import { login } from '@/routes';
 import { Form, Head } from '@inertiajs/react';
 
-import InputError from '@/components/input-error';
-import TextLink from '@/components/text-link';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Spinner } from '@/components/ui/spinner';
-import AuthLayout from '@/layouts/auth-layout';
+import InputError from '@/Components/input-error';
+import TextLink from '@/Components/text-link';
+import { Button } from '@/Components/ui/button';
+import { Input } from '@/Components/ui/input';
+import { Label } from '@/Components/ui/label';
+import { Spinner } from '@/Components/ui/spinner';
+import AuthLayout from '@/Layouts/AuthLayout';
 
 export default function Register() {
     return (
         <AuthLayout
             title="Create an account"
-            description="Enter your details below to create your account"
+            description="Enter your phone number and password to get started"
         >
             <Head title="Register" />
             <Form
@@ -45,17 +45,17 @@ export default function Register() {
                             </div>
 
                             <div className="grid gap-2">
-                                <Label htmlFor="email">Email address</Label>
+                                <Label htmlFor="phone_number">Phone number</Label>
                                 <Input
-                                    id="email"
-                                    type="email"
+                                    id="phone_number"
+                                    type="tel"
                                     required
                                     tabIndex={2}
-                                    autoComplete="email"
-                                    name="email"
-                                    placeholder="email@example.com"
+                                    autoComplete="tel"
+                                    name="phone_number"
+                                    placeholder="+62 812-1234-5678"
                                 />
-                                <InputError message={errors.email} />
+                                <InputError message={errors.phone_number} />
                             </div>
 
                             <div className="grid gap-2">

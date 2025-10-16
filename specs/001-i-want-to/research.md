@@ -1,43 +1,50 @@
 # Phase 0 Research – Vehicle Rental Platform MVP
 
-## Modular Laravel Architecture with Inertia
-- **Decision**: Organize backend code under `app/Modules/{Domain}` with dedicated Controllers, Services, and Repositories while using Inertia 2 to bridge Laravel routes and React 19 pages.
-- **Rationale**: Domain modules keep feature logic cohesive, simplify ownership between teams, and align with clean architecture boundaries (controllers → services → repositories). Inertia avoids a REST duplication layer and lets us deliver server-driven routing with SPA-like UX.
+## Authentication & Authorization Strategy
+- **Decision**: Use Laravel Fortify with custom guards for renters (phone + password) and admins (username + password), storing hashed credentials and pairing sensitive actions (registration, password reset) with short-lived OTP confirmation.
+- **Rationale**: Password-based auth satisfies security expectations while aligning with the updated requirement; Fortify handles rate limiting, CSRF, and password reset flows with minimal custom code.
 - **Alternatives Considered**:
-  - Flat `app/Http` structure: rejected because modules would sprawl and blur responsibilities.
-  - Full API + SPA split: unnecessary overhead for the MVP and duplicates validation/auth layers.
+  - Pure OTP sign-in: rejected due to credential policy and persistent session requirements.
+  - Building bespoke auth: higher maintenance and weaker security posture than Fortify.
 
-## Role-Based Dashboards & Routing
-- **Decision**: Implement Laravel Fortify guards for `web` (users) and `admin`, with middleware to direct Inertia responses to `resources/js/Pages/User/*` or `Admin/*`.
-- **Rationale**: Guard-driven routing keeps authorization centralized and prevents accidental privilege escalation; paired dashboards ensure clarity for each persona.
+## OTP Lifecycle & Rate Limiting
+- **Decision**: Persist hashed OTP codes with five-minute expiry, enforce five attempts per hour before a two-hour lockout, and throttle booking routes using Laravel’s `RateLimiter` facade.
+- **Rationale**: Matches clarified requirement while honoring constitution’s security hygiene; hashed storage and strict throttles reduce abuse potential.
 - **Alternatives Considered**:
-  - Single dashboard with conditional rendering: rejected to avoid complex conditional logic and UX confusion.
-  - Custom auth without Fortify: rejected because Fortify already covers OTP, rate limiting, and CSRF hardening.
+  - External OTP provider throttling only: inconsistent enforcement and more vendor dependencies.
+  - Longer OTP lifetime: increases attack window with little usability gain.
 
-## Frontend Architecture & UI Library Usage
-- **Decision**: Use Shadcn component exports inside `resources/js/components/ui` plus shared hooks for calendars, wrapping Tailwind utility classes for consistent styling and accessibility.
-- **Rationale**: Shadcn gives accessible primitives compatible with Tailwind, accelerating delivery while preserving a modern look; shared hooks keep date-selection logic reusable across car and bike flows.
+## Modular Laravel Architecture
+- **Decision**: Organize backend into `app/Modules/{User,Admin,Vehicle,Rental}` with dedicated Controllers, Services, Requests, Repositories, and Policies, wired through service providers.
+- **Rationale**: Keeps code cohesive per domain, eases future scaling, and supports clean architecture separation (controllers delegate to services/repositories).
 - **Alternatives Considered**:
-  - Rolling bespoke components: slower and risks inconsistent accessibility.
-  - Importing an entire design system (e.g., MUI): heavier bundle and styling divergence from Tailwind.
+  - Flat `app/Http` layout: leads to cross-domain coupling.
+  - Microservices: overkill for MVP timeline.
 
-## Database & Scheduling Strategy
-- **Decision**: Model PostgreSQL tables (`users`, `admins`, `vehicles`, `rentals`, `rental_items`, `drivers`, `availability`) with foreign keys and cascading rules; use Laravel Scheduler plus queued jobs to auto-transition rentals by end date.
-- **Rationale**: Normalized schema supports reporting and future scalability; scheduler ensures rentals advance without manual admin intervention.
+## Inertia + React Frontend Composition
+- **Decision**: Use Inertia 2 to serve React 19 pages with Shadcn/Tailwind UI primitives, centralizing shared UI in `resources/js/components/ui` and domain hooks.
+- **Rationale**: Provides SPA-like UX without separate API maintenance; Shadcn ensures accessible baseline components consistent with product branding.
 - **Alternatives Considered**:
-  - Embedding availability inside rentals table: rejected due to difficulty representing maintenance blocks.
-  - Relying solely on manual admin updates: increases operational risk and misses deadlines automation.
+  - Full REST + SPA: duplicates validation/auth logic.
+  - Other component libraries (MUI, Ant): heavier bundle, styling conflicts with Tailwind.
 
-## Testing Approach
-- **Decision**: Adopt Pest for backend unit/feature tests, use Laravel HTTP tests for Inertia responses, and run Vitest with React Testing Library for dashboard and booking flows.
-- **Rationale**: Pest matches Laravel ecosystem tooling; Vitest integrates tightly with Vite/React 19 and provides fast component testing without leaving the repo tooling set.
+## Scheduling & Rental Lifecycle Automation
+- **Decision**: Depend on Laravel Scheduler plus queued jobs to advance rentals (`pending → active → completed`) based on payment confirmation and end dates, also updating availability slots.
+- **Rationale**: Automates lifecycle enforcement and guarantees calendar accuracy without manual admin intervention.
 - **Alternatives Considered**:
-  - Jest for frontend tests: additional configuration and slower execution compared to Vitest in a Vite project.
-  - Cypress E2E for MVP: deferred until later because integration coverage via Pest + RTL covers core flows with lower setup overhead.
+  - Manual admin updates only: prone to missed deadlines.
+  - External cron service: unnecessary for MVP scope.
 
-## Security & Rate Limiting
-- **Decision**: Enforce Laravel throttle middleware (e.g., `throttle:5,60`) on OTP and login endpoints; store OTP codes hashed in database with five-minute expiry; sanitize WhatsApp message payloads.
-- **Rationale**: Aligns with constitution’s Proactive Security Hygiene while honoring spec requirements (max five attempts/hour, OTP expiry). Sanitization prevents injection within WhatsApp deeplinks.
+## Data Persistence & Reporting
+- **Decision**: Model PostgreSQL tables for users, admins, rentals, rental_items, vehicles, drivers, availability, and rental history views to support dashboards and historical records.
+- **Rationale**: Normalized schema with FK constraints supports auditability, analytics, and future expansion (payments, driver verification).
 - **Alternatives Considered**:
-  - Relying on external OTP provider limits: less controllable and inconsistent across environments.
-  - Allowing longer OTP lifetimes: increases attack surface for SIM swap or shared device misuse.
+  - JSONB availability blobs: complicate querying.
+  - Separate analytics database now: overkill for MVP.
+
+## Testing Stack
+- **Decision**: Use Pest for backend unit/feature tests, Laravel HTTP tests for Inertia endpoints, Vitest + React Testing Library for component coverage, and Lighthouse for performance/accessibility audits.
+- **Rationale**: Aligns with repo tooling, satisfies constitution test mandate, and keeps frontend tests co-located with components.
+- **Alternatives Considered**:
+  - Jest instead of Vitest: slower and redundant with Vite.
+  - Cypress E2E: deferred until MVP stabilizes; current suites cover core flows.
